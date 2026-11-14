@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Voie Speak</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f0a1e; color: #e2e8f0; min-height: 100vh; }
+  #loginScreen {
+    min-height: 100vh;
+    background: linear-gradient(165deg, #ffb347 0%, #ff6b6b 45%, #c44dff 100%);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 2rem 1.4rem 2.5rem;
+  }
+  .bubbles { position: absolute; inset: 0; pointer-events: none; }
+  .bubble {
+    position: absolute;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,.3);
+    border: 3px solid rgba(255,255,255,.45);
+    animation: float 7s ease-in-out infinite;
+  }
+  .bubble:nth-child(1) { width: 110px; height: 110px; top: 6%; left: 5%; background-image: url('https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop'); }
+  .bubble:nth-child(2) { width: 80px; height: 80px; top: 14%; right: 8%; animation-delay: 1s; background-image: url('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop'); }
+  .bubble:nth-child(3) { width: 95px; height: 95px; top: 34%; left: 8%; animation-delay: 2s; background-image: url('https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop'); }
+  .bubble:nth-child(4) { width: 70px; height: 70px; top: 28%; right: 14%; animation-delay: .6s; background-image: url('https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop'); }
+  .bubble:nth-child(5) { width: 85px; height: 85px; bottom: 32%; left: 12%; animation-delay: 1.4s; background-image: url('https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop'); }
+  .bubble:nth-child(6) { width: 75px; height: 75px; bottom: 26%; right: 8%; animation-delay: 2.2s; background-image: url('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop'); }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-14px); }
+  }
+  .login-content { position: relative; z-index: 2; text-align: center; width: 100%; max-width: 340px; color: #fff; }
+  .welcome { font-size: .72rem; letter-spacing: .2em; opacity: .9; margin-bottom: .4rem; }
+  .login-content h1 { font-size: 1.9rem; font-weight: 700; line-height: 1.15; margin-bottom: .5rem; text-shadow: 0 2px 12px rgba(0,0,0,.25); }
+  .tagline { font-size: .9rem; opacity: .92; margin-bottom: 1.8rem; }
+  .google-btn {
+    width: 100%; padding: 1rem; border: none; border-radius: 999px;
+    background: #fff; color: #1a1a1a; font-size: 1.05rem; font-weight: 600; cursor: pointer;
+  }
+  #loginError { color: #fff; background: rgba(0,0,0,.3); border-radius: .5rem; margin-top: .8rem; font-size: .85rem; min-height: 1.2em; padding: .3rem; }
+  #mainApp { display: none; }
+  header { padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,.08); }
+  header h1 { font-size: 1.3rem; background: linear-gradient(90deg,#c4b5fd,#67e8f9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .user-bar { display: flex; align-items: center; gap: .5rem; font-size: .8rem; color: #94a3b8; }
+  .logout { background: transparent; border: 1px solid rgba(255,255,255,.2); color: #94a3b8; padding: .3rem .7rem; border-radius: 999px; font-size: .75rem; cursor: pointer; }
+  .tabs { display: flex; gap: .4rem; flex-wrap: wrap; justify-content: center; margin-bottom: 1rem; }
+  .tab { padding: .4rem .9rem; border-radius: 999px; font-size: .8rem; cursor: pointer; color: #94a3b8; }
+  .tab.active { background: rgba(139,92,246,.25); color: #e9d5ff; }
+  .container { max-width: 520px; margin: 0 auto; padding: 1.2rem; }
+  .chat { background: rgba(18,18,30,.8); border-radius: 1.25rem; padding: 1rem; min-height: 280px; max-height: 380px; overflow-y: auto; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,.08); }
+  .msg { margin-bottom: .75rem; padding: .7rem .9rem; border-radius: 1rem; max-width: 86%; line-height: 1.4; font-size: .95rem; }
+  .msg.examiner { background: rgba(6,182,212,.12); border: 1px solid rgba(6,182,212,.25); margin-right: auto; }
+  .msg.you { background: rgba(139,92,246,.12); border: 1px solid rgba(139,92,246,.25); margin-left: auto; }
+  .msg .role { font-size: .68rem; color: #94a3b8; margin-bottom: .15rem; }
+  .orb-wrapper { position: relative; width: 180px; height: 180px; margin: .4rem auto .8rem; }
+  .orb { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(#8b5cf6,#06b6d4,#ec4899,#8b5cf6); filter: blur(28px); opacity: .55; animation: spin 12s linear infinite; }
+  .orb-inner { position: absolute; inset: 22px; border-radius: 50%; background: #11111c; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,.1); }
+  .orb-inner.active { box-shadow: 0 0 36px rgba(6,182,212,.6); }
+  .mic-icon { width: 46px; height: 46px; fill: #fff; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .status { text-align: center; color: #94a3b8; font-size: .85rem; margin-bottom: .8rem; min-height: 1.2em; }
+  button.start { display: block; margin: 0 auto; padding: .6rem 1.4rem; border-radius: 999px; border: none; background: #8b5cf6; color: white; font-weight: 600; cursor: pointer; }
+  button.start:disabled { opacity: .5; cursor: not-allowed; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="bubbles">
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+  </div>
+  <div class="login-content">
+    <div class="welcome">WELCOME TO</div>
+    <h1>Voie Speak,<br>practice French<br>with confidence</h1>
+    <p class="tagline">Speak with an AI examiner. Get feedback. Improve every day.</p>
+    <button class="google-btn" id="loginBtn">Sign in with Google</button>
+    <p id="loginError"></p>
+  </div>
+</div>
+
+<div id="mainApp">
+  <header>
+    <h1>Voie Speak</h1>
+    <div class="user-bar">
+      <span id="userEmail"></span>
+      <button class="logout" id="logoutBtn">Logout</button>
+    </div>
+  </header>
+  <div class="container">
+    <div class="tabs">
+      <div class="tab active" data-mode="1">Task 1</div>
+      <div class="tab" data-mode="2">Task 2</div>
+      <div class="tab" data-mode="3">Friend Mode</div>
+    </div>
+    <div class="chat" id="chat"></div>
+    <div class="orb-wrapper">
+      <div class="orb"></div>
+      <div class="orb-inner" id="orb">
+        <svg class="mic-icon" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg>
+      </div>
+    </div>
+    <div class="status" id="status">Choose a mode and start</div>
+    <button class="start" id="startBtn">Start Call</button>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyATHY0bPXUmCZMgnAT_GbwyhCXpdIrSAiM",
+    authDomain: "voie-speak.firebaseapp.com",
+    projectId: "voie-speak",
+    storageBucket: "voie-speak.firebasestorage.app",
+    messagingSenderId: "794409228252",
+    appId: "1:794409228252:web:cd128086fa8552db78a119",
+    measurementId: "G-44PBNWWJE0"
+  };
+
+  const ALLOWED_EMAILS = [
+    "hkaurmiss@gmail.com",
+    "manvirgill293@gmail.com",
+    "hkpannu1287@gmail.com"
+  ];
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const provider = new GoogleAuthProvider();
+
+  const loginScreen = document.getElementById("loginScreen");
+  const mainApp = document.getElementById("mainApp");
+  const loginBtn = document.getElementById("loginBtn");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const loginError = document.getElementById("loginError");
+  const userEmailEl = document.getElementById("userEmail");
+
+  loginBtn.addEventListener("click", async () => {
+    loginError.textContent = "";
+    try { await signInWithPopup(auth, provider); }
+    catch (err) { loginError.textContent = "Login failed. Try again."; console.error(err); }
+  });
+
+  logoutBtn.addEventListener("click", () => signOut(auth));
+
+  onAuthStateChanged(auth, (user) => {
+    if (user && ALLOWED_EMAILS.map(e => e.toLowerCase()).includes(user.email.toLowerCase())) {
+      loginScreen.style.display = "none";
+      mainApp.style.display = "block";
+      userEmailEl.textContent = user.email;
+    } else {
+      if (user) { loginError.textContent = "This Google account is not allowed."; signOut(auth); }
+      loginScreen.style.display = "flex";
+      mainApp.style.display = "none";
+    }
+  });
+</script>
+
+<script>
+let currentMode = 1, ws = null, audioContext = null, mediaStream = null, processor = null;
+let isConnected = false, audioQueue = [], isPlaying = false, examinerBuffer = "", examinerMsgEl = null;
+let lastYouEl = null, lastYouTime = 0, ending = false;
+
+const chat = document.getElementById("chat");
+const status = document.getElementById("status");
+const startBtn = document.getElementById("startBtn");
+const orb = document.getElementById("orb");
+
+function addMessage(role, text) {
+  const div = document.createElement("div");
+  div.className = "msg " + role;
+  div.innerHTML = `<div class="role">${role === "you" ? "You" : "Examiner"}</div><span class="text">${text}</span>`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    if (isConnected) return;
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    currentMode = parseInt(tab.dataset.mode);
+  });
+});
+
+startBtn.addEventListener("click", startCall);
+
+function getInstructions() {
+  if (currentMode === 1) return `You are a professional but supportive TCF Canada speaking examiner conducting Task 1. Speak only in French. Keep replies short. Start by asking the candidate to introduce themselves. If incomplete, suggest a better way ONCE then move on.`;
+  if (currentMode === 2) return `You are a professional but supportive TCF Canada speaking examiner conducting Task 2. Speak only in French. Keep replies short. Play the role required. If incomplete, suggest a better way ONCE then continue.`;
+  return `You are a friendly French practice partner. Teach new words, check pronunciation/grammar/completeness, ask them to repeat corrections. If they don't understand or speak English, explain in English then return to French. Warm and encouraging.`;
+}
+
+async function startCall() {
+  if (isConnected || ending) return;
+  startBtn.disabled = true;
+  status.textContent = "Getting session…";
+  try {
+    const tokenRes = await fetch("/api/realtime/token", { method: "POST" });
+    if (!tokenRes.ok) throw new Error(await tokenRes.text());
+    const { token } = await tokenRes.json();
+    if (!token) throw new Error("No token");
+    status.textContent = "Connecting…";
+    ws = new WebSocket("wss://api.x.ai/v1/realtime?model=grok-voice-latest", [`xai-client-secret.${token}`]);
+    ws.onopen = () => {
+      isConnected = true;
+      orb.classList.add("active");
+      status.textContent = "Connected — speak freely";
+      startBtn.textContent = "End Call";
+      startBtn.disabled = false;
+      startBtn.onclick = endCall;
+      ws.send(JSON.stringify({
+        type: "session.update",
+        session: {
+          voice: "eve",
+          instructions: getInstructions(),
+          turn_detection: { type: "server_vad", idle_timeout_ms: 1800 },
+          audio: {
+            input: { format: { type: "audio/pcm", rate: 24000 }, transcription: { model: "grok-transcribe" } },
+            output: { format: { type: "audio/pcm", rate: 24000 }, speed: 0.85 }
+          }
+        }
+      }));
+      setTimeout(() => {
+        const starter = currentMode === 3 ? "Salut ! Je veux pratiquer." : "Bonjour, je suis prêt.";
+        ws.send(JSON.stringify({ type: "conversation.item.create", item: { type: "message", role: "user", content: [{ type: "input_text", text: starter }] } }));
+        ws.send(JSON.stringify({ type: "response.create" }));
+      }, 300);
+      startMic();
+    };
+    ws.onmessage = (e) => handleRealtimeEvent(JSON.parse(e.data));
+    ws.onerror = () => { status.textContent = "Connection error"; endCall(); };
+    ws.onclose = () => { if (isConnected) endCall(); };
+  } catch (err) {
+    status.textContent = "Error: " + err.message;
+    startBtn.disabled = false;
+  }
+}
+
+function handleRealtimeEvent(msg) {
+  switch (msg.type) {
+    case "response.output_audio.delta": if (msg.delta) queueAudio(msg.delta); break;
+    case "response.output_audio_transcript.delta":
+      if (!examinerMsgEl) { examinerBuffer = ""; examinerMsgEl = addMessage("examiner", ""); }
+      examinerBuffer += msg.delta || "";
+      examinerMsgEl.querySelector(".text").textContent = examinerBuffer;
+      chat.scrollTop = chat.scrollHeight;
+      break;
+    case "response.output_audio_transcript.done":
+    case "response.done": examinerMsgEl = null; examinerBuffer = ""; break;
+    case "conversation.item.input_audio_transcription.completed":
+      if (msg.transcript && msg.transcript.trim()) {
+        const text = msg.transcript.trim(), now = Date.now();
+        if (lastYouEl && (now - lastYouTime) < 2500) lastYouEl.querySelector(".text").textContent = text;
+        else lastYouEl = addMessage("you", text);
+        lastYouTime = now;
+      }
+      break;
+    case "input_audio_buffer.speech_started": clearAudioQueue(); examinerMsgEl = null; break;
+    case "error": status.textContent = "API error"; break;
+  }
+}
+
+async function startMic() {
+  try {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const source = audioContext.createMediaStreamSource(mediaStream);
+    processor = audioContext.createScriptProcessor(4096, 1, 1);
+    processor.onaudioprocess = (e) => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      const pcm16 = floatTo16BitPCM(e.inputBuffer.getChannelData(0));
+      ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: arrayBufferToBase64(pcm16.buffer) }));
+    };
+    source.connect(processor);
+    processor.connect(audioContext.destination);
+  } catch { status.textContent = "Microphone permission denied"; }
+}
+
+function floatTo16BitPCM(float32Array) {
+  const buffer = new ArrayBuffer(float32Array.length * 2), view = new DataView(buffer);
+  for (let i = 0; i < float32Array.length; i++) {
+    const s = Math.max(-1, Math.min(1, float32Array[i]));
+    view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+  return new Int16Array(buffer);
+}
+function arrayBufferToBase64(buffer) {
+  let binary = ""; const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+function queueAudio(base64) {
+  const binary = atob(base64), bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  audioQueue.push(bytes);
+  if (!isPlaying) playNext();
+}
+function playNext() {
+  if (!audioQueue.length) { isPlaying = false; return; }
+  isPlaying = true;
+  const bytes = audioQueue.shift();
+  const buf = audioContext.createBuffer(1, bytes.length / 2, 24000);
+  const ch = buf.getChannelData(0), view = new DataView(bytes.buffer);
+  for (let i = 0; i < ch.length; i++) ch[i] = view.getInt16(i * 2, true) / 32768;
+  const src = audioContext.createBufferSource();
+  src.buffer = buf; src.connect(audioContext.destination); src.onended = playNext; src.start();
+}
+function clearAudioQueue() { audioQueue = []; isPlaying = false; }
+
+function endCall() {
+  if (ending) return;
+  ending = true;
+  isConnected = false;
+  if (ws) { ws.onclose = null; ws.onerror = null; ws.close(); ws = null; }
+  if (processor) { processor.disconnect(); processor = null; }
+  if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+  if (audioContext) { audioContext.close(); audioContext = null; }
+  orb.classList.remove("active");
+  status.textContent = "Call ended";
+  startBtn.textContent = "Start Call";
+  startBtn.onclick = startCall;
+  startBtn.disabled = false;
+  clearAudioQueue();
+  setTimeout(() => ending = false, 1500);
+}
+</script>
+</body>
+</html>

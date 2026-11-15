@@ -69,6 +69,11 @@
   .status { text-align: center; color: #94a3b8; font-size: .85rem; margin-bottom: .8rem; min-height: 1.2em; }
   button.start { display: block; margin: 0 auto; padding: .6rem 1.4rem; border-radius: 999px; border: none; background: #8b5cf6; color: white; font-weight: 600; cursor: pointer; }
   button.start:disabled { opacity: .5; cursor: not-allowed; }
+  #sprintList { display: none; max-height: 320px; overflow-y: auto; background: rgba(18,18,30,.6); border-radius: 1rem; padding: .6rem; margin-bottom: 1rem; }
+  .day-item { padding: .55rem .8rem; border-radius: .6rem; margin-bottom: .3rem; cursor: pointer; font-size: .85rem; border: 1px solid transparent; }
+  .day-item:hover { background: rgba(139,92,246,.15); }
+  .day-item.active { background: rgba(139,92,246,.3); border-color: rgba(139,92,246,.5); color: #e9d5ff; }
+  .day-num { font-weight: 600; color: #c4b5fd; margin-right: .4rem; }
 </style>
 </head>
 <body>
@@ -104,7 +109,9 @@
       <div class="tab active" data-mode="1">Task 1</div>
       <div class="tab" data-mode="2">Task 2</div>
       <div class="tab" data-mode="3">Friend Mode</div>
+      <div class="tab" data-mode="4">Sprint</div>
     </div>
+    <div id="sprintList"></div>
     <div class="chat" id="chat"></div>
     <div class="orb-wrapper">
       <div class="orb"></div>
@@ -134,11 +141,7 @@
   const ALLOWED_EMAILS = [
     "hkaurmiss@gmail.com",
     "manvirgill293@gmail.com",
-    "hkpannu1287@gmail.com",
-   "ambr6342@gmail.com",
-   "jodh341@gmail.com",
-   "sahilpuri122000@gmail.com",
-   "sidhujashanpreet21@gmail.com"
+    "hkpannu1287@gmail.com"
   ];
 
   const app = initializeApp(firebaseConfig);
@@ -174,14 +177,79 @@
 </script>
 
 <script>
-let currentMode = 1, ws = null, audioContext = null, mediaStream = null, processor = null;
+let currentMode = 1, selectedDay = 1, ws = null, audioContext = null, mediaStream = null, processor = null;
 let isConnected = false, audioQueue = [], isPlaying = false, examinerBuffer = "", examinerMsgEl = null;
 let lastYouEl = null, lastYouTime = 0, ending = false;
+
+const days = [
+  "Introductions, name, origin, live/work/study",
+  "Greetings, polite requests, numbers, time, dates",
+  "Family and people description",
+  "Daily routine",
+  "Food, ordering, preferences",
+  "Weather, seasons, clothes",
+  "Review + free speaking “my day”",
+  "Housing and describing where you live (Brampton/Toronto)",
+  "Transport, directions, simple problems",
+  "Shopping and prices",
+  "Health basics and doctor appointment",
+  "Hobbies, free time, invitations",
+  "Simple past stories",
+  "Work/study and simple future plans",
+  "Phase 1 mock (3-minute personal intro)",
+  "Passé composé – yesterday / last weekend",
+  "Imparfait for descriptions",
+  "Narrating a full story",
+  "Future plans and making arrangements",
+  "Giving opinions with reasons",
+  "Comparing and deeper preferences",
+  "Problems & solutions (housing, work, transport)",
+  "Giving advice",
+  "Describing experiences and feelings",
+  "Phone / appointment role-plays",
+  "Work situations",
+  "Social situations (inviting, accepting, refusing)",
+  "Canadian life topics",
+  "Longer monologue + connectors",
+  "Phase 2 mock (5-minute experience story)",
+  "Complex opinions + examples",
+  "Work & career goals",
+  "Society topics (housing, cost of living, environment)",
+  "Persuasion practice",
+  "Handling disagreement politely",
+  "Detailed descriptions",
+  "Hypotheticals and conditionals in speech",
+  "TEF-style information request",
+  "TEF-style persuasion / recommendation",
+  "Unexpected questions + self-correction",
+  "Fluency drills",
+  "Canadian professional/social scenarios",
+  "Full mock speaking test",
+  "Weak-point clinic",
+  "Final CLB 7-style interview"
+];
 
 const chat = document.getElementById("chat");
 const status = document.getElementById("status");
 const startBtn = document.getElementById("startBtn");
 const orb = document.getElementById("orb");
+const sprintList = document.getElementById("sprintList");
+
+function renderSprintList() {
+  sprintList.innerHTML = "";
+  days.forEach((topic, i) => {
+    const div = document.createElement("div");
+    div.className = "day-item" + (i + 1 === selectedDay ? " active" : "");
+    div.innerHTML = `<span class="day-num">Day ${i + 1}</span>${topic}`;
+    div.onclick = () => {
+      if (isConnected) return;
+      selectedDay = i + 1;
+      renderSprintList();
+    };
+    sprintList.appendChild(div);
+  });
+}
+renderSprintList();
 
 function addMessage(role, text) {
   const div = document.createElement("div");
@@ -198,6 +266,8 @@ document.querySelectorAll(".tab").forEach(tab => {
     document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
     tab.classList.add("active");
     currentMode = parseInt(tab.dataset.mode);
+    sprintList.style.display = currentMode === 4 ? "block" : "none";
+    status.textContent = currentMode === 4 ? `Sprint — Day ${selectedDay} selected` : "Choose a mode and start";
   });
 });
 
@@ -206,7 +276,13 @@ startBtn.addEventListener("click", startCall);
 function getInstructions() {
   if (currentMode === 1) return `You are a supportive TCF Canada speaking examiner for Task 1 (expression orale, entretien dirigé). Speak only in French. Rules: 1) Ask ONE question at a time and wait for the candidate's full answer before asking the next. 2) Never repeat your own question. 3) If the candidate stays silent for several seconds, gently encourage them once (Allez-y, je vous écoute) and then wait — do not restate the question. 4) Cover familiar topics: name, age, origin, studies, work, hobbies, family, daily life. 5) Keep your turns short. 6) If the answer is incomplete, ask one short follow-up. 7) Start the conversation with a single warm greeting and your first question only.`;
   if (currentMode === 2) return `You are a professional but supportive TCF Canada speaking examiner conducting Task 2. Speak only in French. Keep replies short. Play the role required. If incomplete, suggest a better way ONCE then continue.`;
-  return `You are a friendly French practice partner. Teach new words, check pronunciation/grammar/completeness, ask them to repeat corrections. If they don't understand or speak English, explain in English then return to French. Warm and encouraging.`;
+  if (currentMode === 3) return `You are a friendly French practice partner. Teach new words, check pronunciation/grammar/completeness, ask them to repeat corrections. If they don't understand or speak English, explain in English then return to French. Warm and encouraging.`;
+  const topic = days[selectedDay - 1];
+  const isBeginner = selectedDay <= 7;
+  if (isBeginner) {
+    return `You are a patient French coach for a total beginner on Day ${selectedDay} of the CLB 7 Oral Sprint. Today's topic: "${topic}". Start and explain mostly in simple English. Introduce only a few new French words or short phrases. Say the French slowly, then explain in English. Ask the user to repeat. Correct gently and encourage a lot. Keep everything very simple.`;
+  }
+  return `You are a friendly French coach on Day ${selectedDay} of the CLB 7 Oral Sprint. Today's topic: "${topic}". Teach useful words and phrases, give short examples, ask the user to practice, correct gently, and ask them to repeat better versions. If they don't understand, explain in English then return to French. Speak mostly in French. Stay focused on today's topic.`;
 }
 
 async function startCall() {
@@ -223,7 +299,7 @@ async function startCall() {
     ws.onopen = () => {
       isConnected = true;
       orb.classList.add("active");
-      status.textContent = "Connected — speak freely";
+      status.textContent = currentMode === 4 ? `Day ${selectedDay} — speak freely` : "Connected — speak freely";
       startBtn.textContent = "End Call";
       startBtn.disabled = false;
       startBtn.onclick = endCall;
@@ -240,7 +316,9 @@ async function startCall() {
         }
       }));
       setTimeout(() => {
-        const starter = currentMode === 3 ? "Salut ! Je veux pratiquer." : "Bonjour, je suis prêt.";
+        let starter = "Bonjour, je suis prêt.";
+        if (currentMode === 3) starter = "Salut ! Je veux pratiquer.";
+        if (currentMode === 4) starter = `Bonjour ! Aujourd'hui c'est le jour ${selectedDay}. On commence.`;
         ws.send(JSON.stringify({ type: "conversation.item.create", item: { type: "message", role: "user", content: [{ type: "input_text", text: starter }] } }));
         ws.send(JSON.stringify({ type: "response.create" }));
       }, 300);

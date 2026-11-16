@@ -67,8 +67,13 @@
   .mic-icon { width: 46px; height: 46px; fill: #fff; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .status { text-align: center; color: #94a3b8; font-size: .85rem; margin-bottom: .8rem; min-height: 1.2em; }
-  button.start { display: block; margin: 0 auto; padding: .6rem 1.4rem; border-radius: 999px; border: none; background: #8b5cf6; color: white; font-weight: 600; cursor: pointer; }
-  button.start:disabled { opacity: .5; cursor: not-allowed; }
+  .controls { display: flex; justify-content: center; gap: .6rem; margin-top: .5rem; }
+  button.start, button.pause {
+    padding: .6rem 1.4rem; border-radius: 999px; border: none; font-weight: 600; cursor: pointer;
+  }
+  button.start { background: #8b5cf6; color: white; }
+  button.pause { background: #475569; color: white; display: none; }
+  button.start:disabled, button.pause:disabled { opacity: .5; cursor: not-allowed; }
   #sprintList { display: none; max-height: 320px; overflow-y: auto; background: rgba(18,18,30,.6); border-radius: 1rem; padding: .6rem; margin-bottom: 1rem; }
   .day-item { padding: .55rem .8rem; border-radius: .6rem; margin-bottom: .3rem; cursor: pointer; font-size: .85rem; border: 1px solid transparent; }
   .day-item:hover { background: rgba(139,92,246,.15); }
@@ -120,7 +125,10 @@
       </div>
     </div>
     <div class="status" id="status">Choose a mode and start</div>
-    <button class="start" id="startBtn">Start Call</button>
+    <div class="controls">
+      <button class="start" id="startBtn">Start Call</button>
+      <button class="pause" id="pauseBtn">Pause</button>
+    </div>
   </div>
 </div>
 
@@ -142,7 +150,7 @@
     "hkaurmiss@gmail.com",
     "manvirgill293@gmail.com",
     "hkpannu1287@gmail.com",
-   "sidhujashanpreet21@gmail.com",
+       "sidhujashanpreet21@gmail.com",
    "jodh341@gmail.com",
    "ambr6342@gmail.com",
    "Swagnat03@gmail.com"
@@ -183,7 +191,7 @@
 <script>
 let currentMode = 1, selectedDay = 1, ws = null, audioContext = null, mediaStream = null, processor = null;
 let isConnected = false, audioQueue = [], isPlaying = false, examinerBuffer = "", examinerMsgEl = null;
-let lastYouEl = null, lastYouTime = 0, ending = false;
+let lastYouEl = null, lastYouTime = 0, ending = false, isPaused = false;
 
 const days = [
   "Introductions, name, origin, live/work/study",
@@ -236,6 +244,7 @@ const days = [
 const chat = document.getElementById("chat");
 const status = document.getElementById("status");
 const startBtn = document.getElementById("startBtn");
+const pauseBtn = document.getElementById("pauseBtn");
 const orb = document.getElementById("orb");
 const sprintList = document.getElementById("sprintList");
 
@@ -276,6 +285,7 @@ document.querySelectorAll(".tab").forEach(tab => {
 });
 
 startBtn.addEventListener("click", startCall);
+pauseBtn.addEventListener("click", togglePause);
 
 function getInstructions() {
   if (currentMode === 1) return `You are a supportive TCF Canada speaking examiner for Task 1 (expression orale, entretien dirigé). Speak only in French. Rules: 1) Ask ONE question at a time and wait for the candidate's full answer before asking the next. 2) Never repeat your own question. 3) If the candidate stays silent for several seconds, gently encourage them once (Allez-y, je vous écoute) and then wait — do not restate the question. 4) Cover familiar topics: name, age, origin, studies, work, hobbies, family, daily life. 5) Keep your turns short. 6) If the answer is incomplete, ask one short follow-up. 7) Start the conversation with a single warm greeting and your first question only.`;
@@ -287,6 +297,22 @@ function getInstructions() {
     return `You are a patient French coach for a total beginner on Day ${selectedDay} of the CLB 7 Oral Sprint. Today's topic: "${topic}". Start and explain mostly in simple English. Introduce only a few new French words or short phrases. Say the French slowly, then explain in English. Ask the user to repeat. Correct gently and encourage a lot. Keep everything very simple.`;
   }
   return `You are a friendly French coach on Day ${selectedDay} of the CLB 7 Oral Sprint. Today's topic: "${topic}". Teach useful words and phrases, give short examples, ask the user to practice, correct gently, and ask them to repeat better versions. If they don't understand, explain in English then return to French. Speak mostly in French. Stay focused on today's topic.`;
+}
+
+function togglePause() {
+  if (!isConnected) return;
+  isPaused = !isPaused;
+  if (isPaused) {
+    pauseBtn.textContent = "Resume";
+    status.textContent = "Paused";
+    orb.classList.remove("active");
+    if (mediaStream) mediaStream.getTracks().forEach(t => t.enabled = false);
+  } else {
+    pauseBtn.textContent = "Pause";
+    status.textContent = "Resumed — speak freely";
+    orb.classList.add("active");
+    if (mediaStream) mediaStream.getTracks().forEach(t => t.enabled = true);
+  }
 }
 
 async function startCall() {
@@ -302,11 +328,14 @@ async function startCall() {
     ws = new WebSocket("wss://api.x.ai/v1/realtime?model=grok-voice-latest", [`xai-client-secret.${token}`]);
     ws.onopen = () => {
       isConnected = true;
+      isPaused = false;
       orb.classList.add("active");
       status.textContent = currentMode === 4 ? `Day ${selectedDay} — speak freely` : "Connected — speak freely";
       startBtn.textContent = "End Call";
       startBtn.disabled = false;
       startBtn.onclick = endCall;
+      pauseBtn.style.display = "inline-block";
+      pauseBtn.textContent = "Pause";
       ws.send(JSON.stringify({
         type: "session.update",
         session: {
@@ -338,8 +367,9 @@ async function startCall() {
 }
 
 function handleRealtimeEvent(msg) {
+  if (isPaused && msg.type.startsWith("response.")) return;
   switch (msg.type) {
-    case "response.output_audio.delta": if (msg.delta) queueAudio(msg.delta); break;
+    case "response.output_audio.delta": if (msg.delta && !isPaused) queueAudio(msg.delta); break;
     case "response.output_audio_transcript.delta":
       if (!examinerMsgEl) { examinerBuffer = ""; examinerMsgEl = addMessage("examiner", ""); }
       examinerBuffer += msg.delta || "";
@@ -356,7 +386,7 @@ function handleRealtimeEvent(msg) {
         lastYouTime = now;
       }
       break;
-    case "input_audio_buffer.speech_started": clearAudioQueue(); examinerMsgEl = null; break;
+    case "input_audio_buffer.speech_started": if (!isPaused) { clearAudioQueue(); examinerMsgEl = null; } break;
     case "error": status.textContent = "API error"; break;
   }
 }
@@ -368,7 +398,7 @@ async function startMic() {
     const source = audioContext.createMediaStreamSource(mediaStream);
     processor = audioContext.createScriptProcessor(4096, 1, 1);
     processor.onaudioprocess = (e) => {
-      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      if (!ws || ws.readyState !== WebSocket.OPEN || isPaused) return;
       const pcm16 = floatTo16BitPCM(e.inputBuffer.getChannelData(0));
       ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: arrayBufferToBase64(pcm16.buffer) }));
     };
@@ -391,13 +421,14 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary);
 }
 function queueAudio(base64) {
+  if (isPaused) return;
   const binary = atob(base64), bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   audioQueue.push(bytes);
   if (!isPlaying) playNext();
 }
 function playNext() {
-  if (!audioQueue.length) { isPlaying = false; return; }
+  if (!audioQueue.length || isPaused) { isPlaying = false; return; }
   isPlaying = true;
   const bytes = audioQueue.shift();
   const buf = audioContext.createBuffer(1, bytes.length / 2, 24000);
@@ -412,6 +443,7 @@ function endCall() {
   if (ending) return;
   ending = true;
   isConnected = false;
+  isPaused = false;
   if (ws) { ws.onclose = null; ws.onerror = null; ws.close(); ws = null; }
   if (processor) { processor.disconnect(); processor = null; }
   if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
@@ -421,6 +453,7 @@ function endCall() {
   startBtn.textContent = "Start Call";
   startBtn.onclick = startCall;
   startBtn.disabled = false;
+  pauseBtn.style.display = "none";
   clearAudioQueue();
   setTimeout(() => ending = false, 1500);
 }
